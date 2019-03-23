@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../util/utils.dart' as util;
+import './settings.dart';
 
 class Klimatic extends StatefulWidget{
   @override
@@ -10,17 +11,27 @@ class Klimatic extends StatefulWidget{
 
 class _KlimaticState extends State<Klimatic> {
 
-  String cityName = 'Spokane';
+  String cityName = util.defaultCity;
+
+  String unitSystem = util.defaultUnitSystem;
 
   Future _gotoSettingsScreen(BuildContext context) async {
     Map settingsResponse = await Navigator.of(context).push(
-      MaterialPageRoute<Map>(builder: (BuildContext context) => Settings())
+      MaterialPageRoute<Map>(builder: (BuildContext context) => Settings(unitSystem: unitSystem))
     );
 
-    if (settingsResponse.containsKey('cityName')) {
-      setState(() {
-        cityName = settingsResponse['cityName'];
-      });
+    if (settingsResponse != null) {
+      if (settingsResponse.containsKey('cityName') && settingsResponse['cityName'] != '') {
+        setState(() {
+          cityName = settingsResponse['cityName'];
+        });
+      }
+
+      if (settingsResponse.containsKey('unitSystem')) {
+        setState(() {
+          unitSystem = settingsResponse['unitSystem'];
+        });
+      }
     }
   }
 
@@ -57,15 +68,7 @@ class _KlimaticState extends State<Klimatic> {
             )
           ),
 
-          Container(
-            alignment: Alignment.center,
-            child: Image.asset('images/light_rain.png'),
-          ),
-
-          Container(
-            margin: const EdgeInsets.fromLTRB(30, 350, 0, 0),
-            child: updateTempWidget(cityName),
-          ),
+          updateTempWidget(cityName),
         ],
       )
     );
@@ -73,12 +76,26 @@ class _KlimaticState extends State<Klimatic> {
 
 
   Future<Map> getWeather(String city) async {
-    String apiUrl = "http://api.openweathermap.org/data/2.5/weather?q=$city&units=metric&appid=${util.apiId}";
+    String apiUrl = "http://api.openweathermap.org/data/2.5/weather?q=$city&units=$unitSystem&appid=${util.apiId}";
 
     http.Response response = await http.get(apiUrl);
 
     return json.decode(response.body);
   }
+
+  String _getWeatherIcon(String description) => ({
+    'clear sky': 'clear',
+    'few clouds': 'few-clouds',
+    'scattered clouds': 'clouds',
+    'broken clouds': 'clouds',
+    'shower rain': 'showers-day',
+    'rain': 'rain-day',
+    'thunderstorm': 'storm',
+    'snow': 'snow',
+    'mist': 'mist',
+    'haze': 'mist',
+    'smoke': 'fog',
+  })[description];
 
 
   Widget updateTempWidget(String city) => FutureBuilder(
@@ -86,17 +103,40 @@ class _KlimaticState extends State<Klimatic> {
     builder: (BuildContext context, AsyncSnapshot<Map> snapshot) {
       if (snapshot.hasData) {
         Map content = snapshot.data;
-        return Container(
-          child: Column(
-            children: <Widget>[
-              ListTile(
-                title: Text(
-                  content['main']['temp'].toString(),
-                  style: tempStyle,
-                ),
-              )
-            ],
-          ),
+        return Stack(
+          children: <Widget>[
+            Container(
+              alignment: Alignment.topCenter,
+              margin: const EdgeInsets.fromLTRB(0, 150, 0, 0),
+              child: Image.asset("images/weather_icons/weather-${_getWeatherIcon(content['weather'][0]['description'])}.png"),
+            ),
+
+
+            Container(
+              margin: const EdgeInsets.fromLTRB(30, 350, 0, 0),
+              child: Column(
+                children: <Widget>[
+                  ListTile(
+                    title: Text(
+                      "${content['main']['temp']} ${unitSystem == 'metric' ? 'C' : 'F'}",
+                      style: tempStyle,
+                    ),
+
+                    subtitle: ListTile(
+                        title: Text(
+                            "Humidity: ${content['main']['humidity']}\n"
+                                "Min: ${content['main']['temp_min']}\n"
+                                "Max: ${content['main']['temp_max']}",
+                            style: TextStyle(
+                              color: Colors.white,
+                            )
+                        )
+                    ),
+                  )
+                ],
+              ),
+            )
+          ],
         );
       } else {
         return Container();
@@ -106,57 +146,6 @@ class _KlimaticState extends State<Klimatic> {
 
 }
 
-class Settings extends StatelessWidget {
-
-  TextEditingController _cityFieldController = TextEditingController();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.redAccent,
-        title: Text('Settings'),
-        centerTitle: true,
-      ),
-
-      body: Stack(
-        children: <Widget>[
-          Center(
-            child: Image.asset('images/white_snow.png',
-              width: 490,
-              height: 1200,
-              fit: BoxFit.fill,
-            ),
-          ),
-
-          ListView(
-            children: <Widget>[
-              ListTile(
-                title: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Enter City',
-                  ),
-                  controller: _cityFieldController,
-                  keyboardType: TextInputType.text,
-                ),
-              ),
-              
-              ListTile(
-                title: FlatButton(
-                  onPressed: () => Navigator.pop(context, { 'cityName': _cityFieldController.text }),
-                  textColor: Colors.white70,
-                  color: Colors.redAccent,
-                  child: Text('Get Weather')
-                ),
-              )
-            ],
-          )
-        ],
-      ),
-    );
-  }
-
-}
 
 TextStyle cityStyle = TextStyle(
   color: Colors.white,

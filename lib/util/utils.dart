@@ -1,4 +1,3 @@
-final apiId = '';
-final defaultCity = 'Spokane';
-
-//https://samples.openweathermap.org/data/2.5/weather?q=London,uk&appid=
+final apiId = 'YOUR_API_KEY';
+final defaultCity = 'Saint Petersburg';
+final defaultUnitSystem = 'metric';
